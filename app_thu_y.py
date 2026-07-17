@@ -88,6 +88,16 @@ def get_db_connection():
         st.error(f"🚨 LỖI KẾT NỐI DATABASE! Chi tiết: {e}")
         st.stop()
 
+def update_pet_features(pet_id, features_data):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE pets SET image_features = %s WHERE id = %s",
+        (features_data, pet_id)
+    )
+    cursor.close()
+    conn.close()
+
 
 def init_db():
     # ==============================================================
@@ -949,9 +959,7 @@ else:
                     st.markdown("<br>", unsafe_allow_html=True)
                     with st.spinner("🔍 AI đang phân tích sinh trắc học..."):
                         try:
-                            import requests
-                            import base64
-                            import json
+                            import requests, base64, json
                             
                             face_id_img.seek(0)
                             image_base64 = base64.b64encode(face_id_img.read()).decode('utf-8')
@@ -961,55 +969,56 @@ else:
                             current_pets = get_all_data("pets")
                             registered_pets = [{"id": p[0], "name": p[2], "species": p[3]} for p in current_pets]
                             
-                            # Cập nhật Prompt để yêu cầu AI trả về cả giống loài
                             prompt_face = (
-                                f"Bạn là hệ thống AI quét thú cưng. Danh sách: {json.dumps(registered_pets, ensure_ascii=False)}. "
-                                "Nếu nhận diện được, trả về CHỈ ID (ví dụ: 1). "
-                                "Nếu là thú cưng mới, trả về định dạng: NEW|Giống loài (ví dụ: NEW|Chó). "
-                                "Phân tích ảnh và trả về kết quả theo yêu cầu trên."
+                                f"Bạn là chuyên gia AI quét sinh trắc học thú cưng. Danh sách đã đăng ký: {json.dumps(registered_pets, ensure_ascii=False)}. "
+                                "Nhiệm vụ: 1. Nếu ảnh khớp với thú cưng trong danh sách, trả về DUY NHẤT ID (ví dụ: 1). "
+                                "2. Nếu là thú cưng mới, trả về định dạng: NEW|Giống loài|Đặc điểm nhận diện lông và ngoại hình (màu lông, đốm, tai, mũi)|Nhận xét chi tiết khuôn mặt."
                             )
                             
-                            payload = {
-                                "contents": [{"parts": [
-                                    {"text": prompt_face},
-                                    {"inlineData": {"mimeType": "image/jpeg", "data": image_base64}}
-                                ]}]
-                            }
-                            
+                            payload = {"contents": [{"parts": [{"text": prompt_face}, {"inlineData": {"mimeType": "image/jpeg", "data": image_base64}}]}]}
                             response = requests.post(url, headers={'Content-Type': 'application/json'}, data=json.dumps(payload))
                             
                             if response.status_code == 200:
                                 result_text = response.json()['candidates'][0]['content']['parts'][0]['text'].strip()
                                 
-                                # Xử lý khi nhận diện được ID cũ
+                                # --- TRƯỜNG HỢP NHẬN DIỆN ĐƯỢC THÚ CƯNG CŨ ---
                                 if result_text.isdigit():
                                     matched_id = int(result_text)
                                     matched_pet = next((p for p in current_pets if p[0] == matched_id), None)
                                     if matched_pet:
                                         st.success(f"✅ ĐÃ NHẬN DIỆN: {matched_pet[2]} (Mã: PET-{matched_id:03d})")
                                 
-                                # Xử lý khi là thú cưng mới (NEW)
+                                # --- TRƯỜNG HỢP LÀ THÚ CƯNG MỚI (CHƯA CÓ ID) ---
                                 elif "NEW" in result_text:
-                                    species_detected = result_text.split("|")[1] if "|" in result_text else "Khác"
-                                    st.warning("⚠️ Thú cưng này chưa có trong hệ thống!")
-                                    st.info(f"🤖 AI dự đoán đây là: **{species_detected}**")
+                                    parts = result_text.split("|")
+                                    st.warning("⚠️ Thú cưng này chưa được gán Face ID!")
                                     
-                                    with st.form("form_add_new_pet_from_ai"):
-                                        st.subheader("📝 LƯU HỒ SƠ THÚ CƯNG MỚI")
-                                        new_name = st.text_input("Tên thú cưng:")
-                                        new_species = st.selectbox("Giống loài:", ["Chó", "Mèo", "Khác"], index=["Chó", "Mèo", "Khác"].index(species_detected) if species_detected in ["Chó", "Mèo", "Khác"] else 2)
-                                        new_age = st.number_input("Tuổi:", min_value=1, value=1)
-                                        new_weight = st.number_input("Cân nặng (kg):", min_value=0.1, value=2.0)
+                                    # Hiển thị phân tích đặc điểm từ AI
+                                    st.markdown(f"""
+                                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
+                                        <b>🤖 AI phân tích chi tiết:</b><br>
+                                        • 🧬 <b>Giống loài:</b> {parts[1] if len(parts) > 1 else 'Khác'}<br>
+                                        • 🐾 <b>Đặc điểm:</b> {parts[2] if len(parts) > 2 else 'Không rõ'}<br>
+                                        • 📝 <b>Nhận xét:</b> {parts[3] if len(parts) > 3 else 'Không rõ'}
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                
+                                    # Hiển thị danh sách thú cưng để bác sĩ gán thủ công vào hồ sơ cũ
+                                    all_pets_db = get_all_data("pets") 
+                                    if all_pets_db:
+                                        pet_options = {f"{p[2]} (Mã: PET-{p[0]:03d})": p[0] for p in all_pets_db}
+                                        selected_pet_label = st.selectbox("Chọn hồ sơ thú cưng đã đặt lịch để gán Face ID:", list(pet_options.keys()))
                                         
-                                        if st.form_submit_button("Lưu hồ sơ vào hệ thống"):
-                                            add_pet_to_db(st.session_state.current_user, new_name, new_species, new_age, new_weight)
-                                            st.success(f"🎉 Đã lưu thành công bé {new_name}!")
+                                        if st.button("🔗 Gán Face ID vào hồ sơ này"):
+                                            selected_id = pet_options[selected_pet_label]
+                                            # GỌI HÀM CẬP NHẬT DATABASE
+                                            update_pet_features(selected_id, image_base64)
+                                            st.success(f"✅ Đã gán thành công khuôn mặt cho bé {selected_pet_label}!")
                                             st.rerun()
-                                else:
-                                    st.error("Không thể xác định thú cưng. Vui lòng chụp lại rõ nét hơn.")
+                                    else:
+                                        st.error("Hệ thống chưa có hồ sơ nào để gán.")
                             else:
                                 st.error(f"Lỗi API: {response.status_code}")
-                                
                         except Exception as e:
                             st.error(f"Lỗi hệ thống: {e}")
 # =====================
