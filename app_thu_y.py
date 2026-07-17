@@ -60,7 +60,7 @@ st.markdown("""
     st.markdown("""
     <style>
     [data-testid="stSidebar"] img {
-        max-width: 350px !important; /* Tăng con số này nếu muốn to hơn nữa */
+        max-width: 350px !important;
         margin: 0 auto !important;
         display: block !important;
     }
