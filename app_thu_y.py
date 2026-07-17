@@ -362,7 +362,7 @@ with st.sidebar:
     col1, col2, col3 = st.columns([1, 4, 1]) # Tỉ lệ 1-4-1 giúp logo chiếm không gian rộng hơn
     
     with col2:
-        st.image("logo_petcare_clinic.png", width=250) 
+        st.image("logo_petcare_clinic.png", width=450) 
     
     st.markdown("<h2 style='text-align: center; margin-top: -10px;'>PetCare Smart Clinic</h2>", unsafe_allow_html=True)
     
