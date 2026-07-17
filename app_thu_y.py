@@ -358,9 +358,9 @@ if not st.session_state.logged_in:
 # 2. GIAO DIỆN THANH SIDEBAR SAU KHI ĐĂNG NHẬP
 # ==========================================
 with st.sidebar:
-    # 1. Nạp file ảnh mới (đã tách nền)
+    # 1. Nạp file ảnh (đã tách nền)
     try:
-        logo_pil = Image.open("logo_petcare_clinic_khong_nen.png")
+        logo_pil = Image.open("logo_petcare_clinic.png")
         # 2. Hiển thị logo với kích thước lớn (ví dụ width=250)
         # Streamlit sẽ tự động nhận diện nền trong suốt của file PNG
         st.image(logo_pil, width=250)
