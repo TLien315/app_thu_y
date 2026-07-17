@@ -358,20 +358,19 @@ if not st.session_state.logged_in:
 # 2. GIAO DIỆN THANH SIDEBAR SAU KHI ĐĂNG NHẬP
 # ==========================================
 with st.sidebar:
-    # 1. Nạp file ảnh
-    try:
-        logo_pil = Image.open("logo_petcare_clinic.png")
-        # Sử dụng use_container_width=True sẽ giúp ảnh tự giãn ra 
-        # lấp đầy khoảng không gian Sidebar một cách tự nhiên nhất
-        st.image(logo_pil, use_container_width=True) 
-    except FileNotFoundError:
-        st.error("Không tìm thấy file logo. Vui lòng kiểm tra lại tên file.")
-
-    # 2. Hiển thị tiêu đề căn giữa để nhìn cân đối với logo tròn
-    st.markdown("<h2 style='text-align: center;'>PetCare Clinic</h2>", unsafe_allow_html=True) 
-    st.markdown("---")
+    # --- CHÈN LOGO BẰNG HTML ĐỂ ÉP NỀN TRONG SUỐT ---
+    # Thay 'logo_petcare_clinic.png' bằng đường dẫn đến file của bạn
+    # Nếu file nằm cùng thư mục, bạn có thể cần copy ảnh vào folder .streamlit 
+    # hoặc dùng link URL nếu ảnh đã được deploy công khai.
+    st.markdown("""
+        <div style="display: flex; justify-content: center;">
+            <img src="https://raw.githubusercontent.com/USERNAME/REPO_NAME/main/logo_petcare_clinic.png" 
+                 style="width: 200px; border-radius: 50%; background-color: transparent !important;">
+        </div>
+        <h2 style="text-align: center;">PetCare Clinic</h2>
+    """, unsafe_allow_html=True)
     
-    # 3. Hiển thị thông tin người dùng
+    st.markdown("---")
     st.success(f"👤 Chào: **{st.session_state.current_name}**\n\n📌 Vai trò: **{st.session_state.user_role}**")
     
     if st.session_state.user_role == "Khách Hàng":
