@@ -991,7 +991,7 @@ else:
                                 # --- TRƯỜNG HỢP LÀ THÚ CƯNG MỚI (CHƯA CÓ ID) ---
                                 elif "NEW" in result_text:
                                     parts = result_text.split("|")
-                                    st.warning("⚠️ Thú cưng này chưa được gán Face ID!")
+                                    st.warning("⚠️ Thú cưng này chưa có trong danh sách hồ sơ!")
                                     
                                     # Hiển thị phân tích đặc điểm từ AI
                                     st.markdown(f"""
