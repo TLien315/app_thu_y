@@ -357,9 +357,20 @@ if not st.session_state.logged_in:
 # ==========================================
 # 2. GIAO DIỆN THANH SIDEBAR SAU KHI ĐĂNG NHẬP
 # ==========================================
+# ==========================================
+# 2. GIAO DIỆN THANH SIDEBAR SAU KHI ĐĂNG NHẬP
+# ==========================================
 with st.sidebar:
-    st.image("logo_petcare_clinic.png", width=100)
-    st.title("PetCare Smart Clinic System")
+    # 1. Đảm bảo tên file này khớp với file logo không nền bạn đã upload
+    # 2. Tăng width lên 250 để logo bự lên như bạn yêu cầu
+    st.image("logo_petcare_clinic.png", width=250) 
+    
+    # Dùng markdown để tạo khoảng cách đẹp hơn nếu cần
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Tiêu đề nên dùng markdown để căn chỉnh đẹp hơn title mặc định
+    st.markdown("<h2 style='text-align: center;'>PetCare Smart Clinic</h2>", unsafe_allow_html=True)
+    
     st.markdown("---")
     st.success(f"👤 Chào: **{st.session_state.current_name}**\n\n📌 Vai trò: **{st.session_state.user_role}**")
     
