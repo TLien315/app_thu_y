@@ -139,7 +139,7 @@ def init_db():
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     """)
     
-    # Bảng 2: pets (Đã có sẵn cột image_features)
+    # Bảng 2: pets
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS pets (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -152,6 +152,9 @@ def init_db():
             FOREIGN KEY (owner_username) REFERENCES users(username) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     """)
+    
+    # ÉP BUỘC CẬP NHẬT CỘT LÊN LONGTEXT (Quan trọng: lệnh này sẽ sửa lỗi của bạn)
+    cursor.execute("ALTER TABLE pets MODIFY image_features LONGTEXT NULL;")
     
     # Bảng 3: appointments 
     cursor.execute("""
