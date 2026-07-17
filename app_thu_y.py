@@ -959,30 +959,54 @@ else:
                             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key_vision}"
                             
                             current_pets = get_all_data("pets")
-                            registered_pets = [{"id": p[0], "name": p[2], "species": p[3], "features": p[6]} for p in current_pets if len(p)>6 and p[6]]
+                            registered_pets = [{"id": p[0], "name": p[2], "species": p[3]} for p in current_pets]
                             
-                            # Định nghĩa payload ngay trong phạm vi này để không bị lỗi undefined
+                            # Cập nhật Prompt để yêu cầu AI trả về cả giống loài
+                            prompt_face = (
+                                f"Bạn là hệ thống AI quét thú cưng. Danh sách: {json.dumps(registered_pets, ensure_ascii=False)}. "
+                                "Nếu nhận diện được, trả về CHỈ ID (ví dụ: 1). "
+                                "Nếu là thú cưng mới, trả về định dạng: NEW|Giống loài (ví dụ: NEW|Chó). "
+                                "Phân tích ảnh và trả về kết quả theo yêu cầu trên."
+                            )
+                            
                             payload = {
-                                "contents": [{
-                                    "parts": [
-                                        {"text": f"Bạn là hệ thống AI quét sinh trắc học thú cưng. Danh sách: {json.dumps(registered_pets, ensure_ascii=False)}. Nhiệm vụ: Phân tích ảnh và trả về DUY NHẤT ID thú cưng hoặc chữ NEW."},
-                                        {"inlineData": {"mimeType": "image/jpeg", "data": image_base64}}
-                                    ]
-                                }]
+                                "contents": [{"parts": [
+                                    {"text": prompt_face},
+                                    {"inlineData": {"mimeType": "image/jpeg", "data": image_base64}}
+                                ]}]
                             }
                             
                             response = requests.post(url, headers={'Content-Type': 'application/json'}, data=json.dumps(payload))
                             
                             if response.status_code == 200:
                                 result_text = response.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+                                
+                                # Xử lý khi nhận diện được ID cũ
                                 if result_text.isdigit():
                                     matched_id = int(result_text)
                                     matched_pet = next((p for p in current_pets if p[0] == matched_id), None)
                                     if matched_pet:
-                                        owner_fullname = next((u[2] for u in users_data if u[0] == matched_pet[1]), matched_pet[1])
-                                        st.success(f"✅ **NHẬN DIỆN THÀNH CÔNG: PET-{matched_id:03d}** - Tên: {matched_pet[2]} - Chủ: {owner_fullname}")
+                                        st.success(f"✅ ĐÃ NHẬN DIỆN: {matched_pet[2]} (Mã: PET-{matched_id:03d})")
+                                
+                                # Xử lý khi là thú cưng mới (NEW)
+                                elif "NEW" in result_text:
+                                    species_detected = result_text.split("|")[1] if "|" in result_text else "Khác"
+                                    st.warning("⚠️ Thú cưng này chưa có trong hệ thống!")
+                                    st.info(f"🤖 AI dự đoán đây là: **{species_detected}**")
+                                    
+                                    with st.form("form_add_new_pet_from_ai"):
+                                        st.subheader("📝 LƯU HỒ SƠ THÚ CƯNG MỚI")
+                                        new_name = st.text_input("Tên thú cưng:")
+                                        new_species = st.selectbox("Giống loài:", ["Chó", "Mèo", "Khác"], index=["Chó", "Mèo", "Khác"].index(species_detected) if species_detected in ["Chó", "Mèo", "Khác"] else 2)
+                                        new_age = st.number_input("Tuổi:", min_value=1, value=1)
+                                        new_weight = st.number_input("Cân nặng (kg):", min_value=0.1, value=2.0)
+                                        
+                                        if st.form_submit_button("Lưu hồ sơ vào hệ thống"):
+                                            add_pet_to_db(st.session_state.current_user, new_name, new_species, new_age, new_weight)
+                                            st.success(f"🎉 Đã lưu thành công bé {new_name}!")
+                                            st.rerun()
                                 else:
-                                    st.warning("⚠️ Không nhận diện được hồ sơ cũ.")
+                                    st.error("Không thể xác định thú cưng. Vui lòng chụp lại rõ nét hơn.")
                             else:
                                 st.error(f"Lỗi API: {response.status_code}")
                                 
