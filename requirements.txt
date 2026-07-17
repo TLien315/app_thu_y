@@ -1,0 +1,7 @@
+streamlit
+pymysql
+bcrypt
+opencv-python-headless
+pandas
+numpy
+pillow
