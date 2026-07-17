@@ -364,7 +364,7 @@ with st.sidebar:
     
     with col2:
         # Tăng width lên để logo to hơn (ví dụ: 150 hoặc 200)
-        st.image("logo_petcare_clinic.png", width=150)
+        st.image("logo_petcare_clinic.png", width=250)
     
     # Căn giữa tiêu đề và làm gọn nó
     st.markdown("<h2 style='text-align: center;'>PetCare Smart Clinic</h2>", unsafe_allow_html=True)
