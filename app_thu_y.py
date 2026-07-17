@@ -14,7 +14,7 @@ from datetime import datetime
 # ==========================================
 st.set_page_config(
     page_title="PetCare Smart Clinic System",
-    page_icon="🏥",
+    page_icon="logo_petcare_clinic.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -1050,7 +1050,7 @@ if st.session_state.logged_in and st.session_state.user_role == "Khách Hàng":
         wrapper.id = 'petcare-chat-wrapper';
         wrapper.innerHTML = `
             <div id="chat-bubble">
-                <img src="https://cdn-icons-png.flaticon.com/512/616/616408.png" alt="Logo AI">
+                <img src="logo_petcare_clinic.png" alt="Logo AI">
                 <span id="chat-badge">1</span>
             </div>
             <div id="chat-window" class="chat-hidden">
