@@ -27,9 +27,9 @@ st.markdown("""
     .stApp {
         background-color: #f8f9fa;
     }
-    /* Style cho Sidebar */
+    /* Style cho Sidebar - ĐÃ SỬA CHỖ NÀY */
     [data-testid="stSidebar"] img {
-        max-width: 500px !important;
+        max-width: 450px !important; 
         margin: 0 auto !important;
         display: block !important;
     }
