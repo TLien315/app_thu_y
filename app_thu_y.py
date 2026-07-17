@@ -74,7 +74,8 @@ def get_db_connection():
             cursorclass=pymysql.cursors.DictCursor
         )
     except pymysql.MySQLError as e:
-        st.error(f"🚨 LỖI KẾT NỐI DATABASE! Kiểm tra XAMPP/Laragon. Chi tiết: {e}")
+        # Sửa lại câu thông báo lỗi cho chuyên nghiệp
+        st.error(f"🚨 LỖI KẾT NỐI DATABASE! Chi tiết: {e}")
         st.stop()
 
 
