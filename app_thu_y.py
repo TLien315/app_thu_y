@@ -29,7 +29,7 @@ st.markdown("""
     }
     /* Style cho Sidebar */
     [data-testid="stSidebar"] img {
-        max-width: 350px !important;
+        max-width: 500px !important;
         margin: 0 auto !important;
         display: block !important;
     }
