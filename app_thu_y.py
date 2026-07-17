@@ -358,18 +358,8 @@ if not st.session_state.logged_in:
 # 2. GIAO DIỆN THANH SIDEBAR SAU KHI ĐĂNG NHẬP
 # ==========================================
 with st.sidebar:
-    # --- CHÈN LOGO BẰNG HTML ĐỂ ÉP NỀN TRONG SUỐT ---
-    # Thay 'logo_petcare_clinic.png' bằng đường dẫn đến file của bạn
-    # Nếu file nằm cùng thư mục, bạn có thể cần copy ảnh vào folder .streamlit 
-    # hoặc dùng link URL nếu ảnh đã được deploy công khai.
-    st.markdown("""
-        <div style="display: flex; justify-content: center;">
-            <img src="https://github.com/TLien315/app_thu_y/blob/main/logo_petcare_clinic.png" 
-                 style="width: 200px; border-radius: 50%; background-color: transparent !important;">
-        </div>
-        <h2 style="text-align: center;">PetCare Clinic</h2>
-    """, unsafe_allow_html=True)
-    
+    st.image("logo_petcare_clinic.png", width=100)
+    st.title("PetCare Smart Clinic System")
     st.markdown("---")
     st.success(f"👤 Chào: **{st.session_state.current_name}**\n\n📌 Vai trò: **{st.session_state.user_role}**")
     
