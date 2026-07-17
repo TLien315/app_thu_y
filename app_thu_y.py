@@ -148,7 +148,7 @@ def init_db():
             species VARCHAR(50) NOT NULL,
             age INT NOT NULL,
             weight FLOAT NOT NULL,
-            image_features TEXT NULL,
+            image_features LONGTEXT NULL,
             FOREIGN KEY (owner_username) REFERENCES users(username) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     """)
