@@ -8,13 +8,14 @@ import pandas as pd
 import plotly.express as px
 import io
 from datetime import datetime
+from PIL import Image
 
 # ==========================================
 # CẤU HÌNH GIAO DIỆN HIỆN ĐẠI (BRIGHTER MODERN UI)
 # ==========================================
 st.set_page_config(
     page_title="PetCare Smart Clinic System",
-    page_icon="logo_petcare_clinic.png",
+    page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -357,7 +358,7 @@ if not st.session_state.logged_in:
 # 2. GIAO DIỆN THANH SIDEBAR SAU KHI ĐĂNG NHẬP
 # ==========================================
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/616/616408.png", width=100)
+    st.image("logo_petcare_clinic.png", width=100)
     st.title("PetCare Smart Clinic System")
     st.markdown("---")
     st.success(f"👤 Chào: **{st.session_state.current_name}**\n\n📌 Vai trò: **{st.session_state.user_role}**")
@@ -1050,7 +1051,7 @@ if st.session_state.logged_in and st.session_state.user_role == "Khách Hàng":
         wrapper.id = 'petcare-chat-wrapper';
         wrapper.innerHTML = `
             <div id="chat-bubble">
-                <img src="logo_petcare_clinic.png" alt="Logo AI">
+                <img src="https://cdn-icons-png.flaticon.com/512/616/616408.png" alt="Logo AI">
                 <span id="chat-badge">1</span>
             </div>
             <div id="chat-window" class="chat-hidden">
