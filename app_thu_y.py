@@ -364,7 +364,7 @@ with st.sidebar:
     # hoặc dùng link URL nếu ảnh đã được deploy công khai.
     st.markdown("""
         <div style="display: flex; justify-content: center;">
-            <img src="https://raw.githubusercontent.com/USERNAME/REPO_NAME/main/logo_petcare_clinic.png" 
+            <img src="https://github.com/TLien315/app_thu_y/blob/main/logo_petcare_clinic.png" 
                  style="width: 200px; border-radius: 50%; background-color: transparent !important;">
         </div>
         <h2 style="text-align: center;">PetCare Clinic</h2>
