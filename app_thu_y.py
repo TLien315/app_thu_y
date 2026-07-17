@@ -358,18 +358,20 @@ if not st.session_state.logged_in:
 # 2. GIAO DIỆN THANH SIDEBAR SAU KHI ĐĂNG NHẬP
 # ==========================================
 with st.sidebar:
-    # 1. Nạp file ảnh (đã tách nền)
+    # 1. Nạp file ảnh
     try:
         logo_pil = Image.open("logo_petcare_clinic.png")
-        # 2. Hiển thị logo với kích thước lớn (ví dụ width=250)
-        # Streamlit sẽ tự động nhận diện nền trong suốt của file PNG
-        st.image(logo_pil, width=250)
+        # Sử dụng use_container_width=True sẽ giúp ảnh tự giãn ra 
+        # lấp đầy khoảng không gian Sidebar một cách tự nhiên nhất
+        st.image(logo_pil, use_container_width=True) 
     except FileNotFoundError:
         st.error("Không tìm thấy file logo. Vui lòng kiểm tra lại tên file.")
 
-    # 3. Hiển thị tiêu đề ngay bên dưới
-    st.markdown("## PetCare Clinic") 
+    # 2. Hiển thị tiêu đề căn giữa để nhìn cân đối với logo tròn
+    st.markdown("<h2 style='text-align: center;'>PetCare Clinic</h2>", unsafe_allow_html=True) 
     st.markdown("---")
+    
+    # 3. Hiển thị thông tin người dùng
     st.success(f"👤 Chào: **{st.session_state.current_name}**\n\n📌 Vai trò: **{st.session_state.user_role}**")
     
     if st.session_state.user_role == "Khách Hàng":
