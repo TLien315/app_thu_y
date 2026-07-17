@@ -56,6 +56,15 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
     </style>
+    
+    st.markdown("""
+    <style>
+    [data-testid="stSidebar"] img {
+        max-width: 350px !important; /* Tăng con số này nếu muốn to hơn nữa */
+        margin: 0 auto !important;
+        display: block !important;
+    }
+    </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
@@ -358,11 +367,9 @@ if not st.session_state.logged_in:
 # 2. GIAO DIỆN THANH SIDEBAR SAU KHI ĐĂNG NHẬP
 # ==========================================
 with st.sidebar:
-    # Tăng width lên 250 hoặc 300 để logo bự hơn rõ rệt
-    col1, col2, col3 = st.columns([1, 4, 1]) # Tỉ lệ 1-4-1 giúp logo chiếm không gian rộng hơn
-    
-    with col2:
-        st.image("logo_petcare_clinic.png", width=450) 
+    # 1. Bỏ qua st.columns để logo có không gian tự do nhất
+    # 2. Dùng use_container_width=True + CSS để ép nó to ra
+    st.image("logo_petcare_clinic.png", use_container_width=True) 
     
     st.markdown("<h2 style='text-align: center; margin-top: -10px;'>PetCare Smart Clinic</h2>", unsafe_allow_html=True)
     
