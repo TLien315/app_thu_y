@@ -358,8 +358,17 @@ if not st.session_state.logged_in:
 # 2. GIAO DIỆN THANH SIDEBAR SAU KHI ĐĂNG NHẬP
 # ==========================================
 with st.sidebar:
-    st.image("logo_petcare_clinic.png", width=100)
-    st.title("PetCare Smart Clinic System")
+    # Tạo các cột để căn giữa logo
+    # 1 cột trái (trống), 1 cột giữa (để logo), 1 cột phải (trống)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        # Tăng width lên để logo to hơn (ví dụ: 150 hoặc 200)
+        st.image("logo_petcare_clinic.png", width=150)
+    
+    # Căn giữa tiêu đề và làm gọn nó
+    st.markdown("<h2 style='text-align: center;'>PetCare Smart Clinic</h2>", unsafe_allow_html=True)
+    
     st.markdown("---")
     st.success(f"👤 Chào: **{st.session_state.current_name}**\n\n📌 Vai trò: **{st.session_state.user_role}**")
     
