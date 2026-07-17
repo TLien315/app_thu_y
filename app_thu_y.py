@@ -20,11 +20,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# GỘP TẤT CẢ CSS VÀO MỘT KHỐI DUY NHẤT ĐỂ TRÁNH LỖI CÚ PHÁP
 st.markdown("""
     <style>
+    /* Tổng thể ứng dụng */
     .stApp {
         background-color: #f8f9fa;
     }
+    /* Style cho Sidebar */
+    [data-testid="stSidebar"] img {
+        max-width: 350px !important;
+        margin: 0 auto !important;
+        display: block !important;
+    }
+    /* Nút bấm */
     div.stButton > button:first-child {
         background-color: #007bff;
         color: white;
@@ -39,6 +48,7 @@ st.markdown("""
         background-color: #0056b3;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     }
+    /* Các khối hiển thị */
     .feature-box {
         background-color: white;
         padding: 20px;
@@ -56,17 +66,7 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
     </style>
-    
-    st.markdown("""
-    <style>
-    [data-testid="stSidebar"] img {
-        max-width: 350px !important;
-        margin: 0 auto !important;
-        display: block !important;
-    }
-    </style>
 """, unsafe_allow_html=True)
-
 # ==========================================
 # 1. THIẾT LẬP CƠ SỞ DỮ LIỆU CHUẨN QUAN HỆ (MySQL)
 # ==========================================
