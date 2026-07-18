@@ -10,6 +10,16 @@ import io
 from datetime import datetime
 from PIL import Image
 
+# Thêm đoạn CSS của bạn vào đây
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 # ==========================================
 # CẤU HÌNH GIAO DIỆN HIỆN ĐẠI (BRIGHTER MODERN UI)
 # ==========================================
