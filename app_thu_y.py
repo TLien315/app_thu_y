@@ -10,12 +10,18 @@ import io
 from datetime import datetime
 from PIL import Image
 
-# Thêm đoạn CSS của bạn vào đây
+# Cập nhật CSS để ẩn tối đa các thành phần hệ thống
 hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
             header {visibility: hidden;}
+            
+            /* Ẩn thanh công cụ điều hướng của Streamlit */
+            div[data-testid="stToolbar"] {visibility: hidden;}
+            
+            /* Ẩn menu hồ sơ/tài khoản ở góc nếu có */
+            div[data-testid="stDecoration"] {visibility: hidden;}
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
