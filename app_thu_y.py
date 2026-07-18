@@ -8,7 +8,6 @@ import pandas as pd
 import plotly.express as px
 import io
 from datetime import datetime
-from PIL import Image
 
 # Cập nhật CSS để ẩn tối đa các thành phần hệ thống
 hide_streamlit_style = """
