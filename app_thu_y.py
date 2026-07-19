@@ -9,21 +9,33 @@ import plotly.express as px
 import io
 from datetime import datetime
 
-# Cập nhật CSS để ẩn tối đa các thành phần hệ thống
-hide_streamlit_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            
-            /* Ẩn thanh công cụ điều hướng của Streamlit */
-            div[data-testid="stToolbar"] {visibility: hidden;}
-            
-            /* Ẩn menu hồ sơ/tài khoản ở góc nếu có */
-            div[data-testid="stDecoration"] {visibility: hidden;}
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+# CẤU HÌNH GIAO DIỆN NÂNG CAO
+hide_st_style = """
+<style>
+    /* Ẩn chữ Made with Streamlit ở dưới cùng */
+    footer {visibility: hidden !important;}
+    
+    /* Ẩn thanh menu Hamburger và nút Deploy ở góc phải */
+    div[data-testid="stToolbar"] {visibility: hidden !important;}
+    
+    /* Ẩn đường viền màu trên cùng */
+    div[data-testid="stDecoration"] {visibility: hidden !important;}
+    
+    /* ÉP BUỘC NÚT MỞ SIDEBAR PHẢI HIỆN RA */
+    [data-testid="collapsedControl"] {
+        visibility: visible !important;
+        display: flex !important;
+        z-index: 999999 !important;
+    }
+    
+    /* Đảm bảo phần đầu trang không bị ẩn toàn bộ */
+    header {
+        visibility: visible !important;
+        background: transparent !important;
+    }
+</style>
+"""
+st.markdown(hide_st_style, unsafe_allow_html=True)
 
 # ==========================================
 # CẤU HÌNH GIAO DIỆN HIỆN ĐẠI (BRIGHTER MODERN UI)
@@ -311,7 +323,7 @@ def get_all_data(table_name):
     rows = cursor.fetchall()
     cursor.close()
     conn.close()
-    
+
     result = []
     for r in rows:
         if table_name == "users":
@@ -321,6 +333,16 @@ def get_all_data(table_name):
         elif table_name == "appointments":
             result.append((r['id'], r['pet_id'], r['date'], r['reason'], r['status'], r.get('doctor_notes') or "", r.get('fee') or 0))
     return result
+
+
+def get_user_by_username(username):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT username, full_name, phone FROM users WHERE username = %s", (username,))
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    return row
 
 
 # Khởi động Session State
@@ -978,63 +1000,92 @@ else:
                     with st.spinner("🔍 AI đang phân tích sinh trắc học..."):
                         try:
                             import requests, base64, json
-                            
+
                             face_id_img.seek(0)
-                            image_base64 = base64.b64encode(face_id_img.read()).decode('utf-8')
+                            new_image_base64 = base64.b64encode(face_id_img.read()).decode('utf-8')
                             api_key_vision = st.secrets["GEMINI_API_KEY"]
                             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key_vision}"
-                            
+
                             current_pets = get_all_data("pets")
-                            registered_pets = [{"id": p[0], "name": p[2], "species": p[3]} for p in current_pets]
-                            
+                            # CHỈ lấy những bé ĐÃ có ảnh hồ sơ lưu trong DB để so sánh
+                            pets_with_photo = [p for p in current_pets if p[6]]
+
                             prompt_face = (
-                                f"Bạn là chuyên gia AI quét sinh trắc học thú cưng. Danh sách đã đăng ký: {json.dumps(registered_pets, ensure_ascii=False)}. "
-                                "Nhiệm vụ: 1. Nếu ảnh khớp với thú cưng trong danh sách, trả về DUY NHẤT ID (ví dụ: 1). "
-                                "2. Nếu là thú cưng mới, trả về định dạng: NEW|Giống loài|Đặc điểm nhận diện lông và ngoại hình (màu lông, đốm, tai, mũi)|Nhận xét chi tiết khuôn mặt."
+                                "Bạn là chuyên gia AI nhận diện khuôn mặt thú cưng bằng cách so sánh HÌNH ẢNH THỰC TẾ, "
+                                "KHÔNG dựa vào tên hay loài. "
+                                "Ảnh ĐẦU TIÊN là ảnh vừa quét cần nhận diện. Các ảnh tiếp theo là ảnh hồ sơ đã lưu, "
+                                "mỗi ảnh có nhãn PET_ID đứng ngay trước nó. "
+                                "So sánh đặc điểm ngoại hình (màu lông, hoa văn/đốm, hình dạng tai, mũi, mắt...) giữa ảnh vừa quét "
+                                "và từng ảnh hồ sơ. "
+                                "Nếu khớp với một hồ sơ, CHỈ trả về DUY NHẤT con số PET_ID đó, không thêm chữ nào khác (ví dụ: 3). "
+                                "Nếu không khớp với bất kỳ hồ sơ nào, trả về đúng định dạng: "
+                                "NEW|Giống loài|Đặc điểm nhận diện lông và ngoại hình|Nhận xét chi tiết khuôn mặt."
                             )
-                            
-                            payload = {"contents": [{"parts": [{"text": prompt_face}, {"inlineData": {"mimeType": "image/jpeg", "data": image_base64}}]}]}
+
+                            parts = [
+                                {"text": prompt_face},
+                                {"text": "ẢNH CẦN NHẬN DIỆN:"},
+                                {"inlineData": {"mimeType": "image/jpeg", "data": new_image_base64}}
+                            ]
+
+                            for p in pets_with_photo:
+                                parts.append({"text": f"PET_ID {p[0]} - Ảnh hồ sơ đã lưu:"})
+                                parts.append({"inlineData": {"mimeType": "image/jpeg", "data": p[6]}})
+
+                            payload = {"contents": [{"parts": parts}]}
                             response = requests.post(url, headers={'Content-Type': 'application/json'}, data=json.dumps(payload))
-                            
+
                             if response.status_code == 200:
                                 result_text = response.json()['candidates'][0]['content']['parts'][0]['text'].strip()
-                                
+
                                 # --- TRƯỜNG HỢP NHẬN DIỆN ĐƯỢC THÚ CƯNG CŨ ---
                                 if result_text.isdigit():
                                     matched_id = int(result_text)
                                     matched_pet = next((p for p in current_pets if p[0] == matched_id), None)
                                     if matched_pet:
+                                        owner_info = get_user_by_username(matched_pet[1])
                                         st.success(f"✅ ĐÃ NHẬN DIỆN: {matched_pet[2]} (Mã: PET-{matched_id:03d})")
-                                
-                                # --- TRƯỜNG HỢP LÀ THÚ CƯNG MỚI (CHƯA CÓ ID) ---
+                                        if owner_info:
+                                            st.markdown(f"""
+                                            <div style="background-color:#e8f4fd;padding:15px;border-radius:8px;border:1px solid #b8daff;color:#004085;">
+                                                <b>👤 Thông tin chủ nuôi:</b><br>
+                                                • Họ tên: {owner_info['full_name']}<br>
+                                                • Username: {owner_info['username']}<br>
+                                                • SĐT: {owner_info['phone'] or 'Chưa cập nhật'}<br>
+                                                • Loài: {matched_pet[3]} — Tuổi: {matched_pet[4]} — Cân nặng: {matched_pet[5]}kg
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                                        else:
+                                            st.error(f"⚠️ Không tìm thấy chủ nuôi trong hệ thống (owner_username: '{matched_pet[1]}').")
+                                    else:
+                                        st.error("Không tìm thấy hồ sơ thú cưng tương ứng với ID nhận diện được.")
+
+                                # --- TRƯỜNG HỢP LÀ THÚ CƯNG MỚI ---
                                 elif "NEW" in result_text:
-                                    parts = result_text.split("|")
-                                    st.warning("⚠️ Thú cưng này chưa có trong danh sách hồ sơ!")
-                                    
-                                    # Hiển thị phân tích đặc điểm từ AI
+                                    parts_r = result_text.split("|")
+                                    st.warning("⚠️ Thú cưng này chưa có trong danh sách hồ sơ (hoặc chưa từng được gán ảnh)!")
                                     st.markdown(f"""
                                     <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
                                         <b>🤖 AI phân tích chi tiết:</b><br>
-                                        • 🧬 <b>Giống loài:</b> {parts[1] if len(parts) > 1 else 'Khác'}<br>
-                                        • 🐾 <b>Đặc điểm:</b> {parts[2] if len(parts) > 2 else 'Không rõ'}<br>
-                                        • 📝 <b>Nhận xét:</b> {parts[3] if len(parts) > 3 else 'Không rõ'}
+                                        • 🧬 <b>Giống loài:</b> {parts_r[1] if len(parts_r) > 1 else 'Khác'}<br>
+                                        • 🐾 <b>Đặc điểm:</b> {parts_r[2] if len(parts_r) > 2 else 'Không rõ'}<br>
+                                        • 📝 <b>Nhận xét:</b> {parts_r[3] if len(parts_r) > 3 else 'Không rõ'}
                                     </div>
                                     """, unsafe_allow_html=True)
-                
-                                    # Hiển thị danh sách thú cưng để bác sĩ gán thủ công vào hồ sơ cũ
-                                    all_pets_db = get_all_data("pets") 
+
+                                    all_pets_db = get_all_data("pets")
                                     if all_pets_db:
                                         pet_options = {f"{p[2]} (Mã: PET-{p[0]:03d})": p[0] for p in all_pets_db}
-                                        selected_pet_label = st.selectbox("Chọn hồ sơ thú cưng đã đặt lịch để gán Face ID:", list(pet_options.keys()))
-                                        
+                                        selected_pet_label = st.selectbox("Chọn hồ sơ thú cưng để gán Face ID:", list(pet_options.keys()))
                                         if st.button("🔗 Gán Face ID vào hồ sơ này"):
                                             selected_id = pet_options[selected_pet_label]
-                                            # GỌI HÀM CẬP NHẬT DATABASE
-                                            update_pet_features(selected_id, image_base64)
+                                            update_pet_features(selected_id, new_image_base64)
                                             st.success(f"✅ Đã gán thành công khuôn mặt cho bé {selected_pet_label}!")
                                             st.rerun()
                                     else:
                                         st.error("Hệ thống chưa có hồ sơ nào để gán.")
+                                else:
+                                    st.warning("AI không xác định được kết quả rõ ràng, vui lòng thử quét lại với ánh sáng tốt hơn.")
                             else:
                                 st.error(f"Lỗi API: {response.status_code}")
                         except Exception as e:
