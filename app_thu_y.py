@@ -99,31 +99,23 @@ st.markdown("""
 # 1. THIẾT LẬP CƠ SỞ DỮ LIỆU CHUẨN QUAN HỆ (MySQL)
 # ==========================================
 
-@st.cache_resource
-def get_db_engine():
-    # Sử dụng @st.cache_resource để giữ kết nối sống mãi trong phiên làm việc
-    return pymysql.connect(
-        host=st.secrets["DB_HOST"],
-        user=st.secrets["DB_USER"],
-        password=st.secrets["DB_PASS"],
-        database=st.secrets["DB_NAME"],
-        port=int(st.secrets["DB_PORT"]),
-        autocommit=True,
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor,
-        ssl={'cert_reqs': ssl.CERT_NONE}
-    )
-
 def get_db_connection():
-    conn = get_db_engine()
     try:
-        # Kiểm tra xem kết nối còn sống không (ping)
-        conn.ping(reconnect=True)
-    except:
-        # Nếu chết, lấy kết nối mới
-        st.cache_resource.clear()
-        conn = get_db_engine()
-    return conn
+        return pymysql.connect(
+            host=st.secrets["DB_HOST"],
+            user=st.secrets["DB_USER"],
+            password=st.secrets["DB_PASS"],
+            database=st.secrets["DB_NAME"],
+            port=int(st.secrets["DB_PORT"]),
+            connect_timeout=10, # QUAN TRỌNG: Giới hạn thời gian đợi 10 giây
+            autocommit=True,
+            charset='utf8mb4',
+            cursorclass=pymysql.cursors.DictCursor,
+            ssl={'ssl': {'cert_reqs': ssl.CERT_NONE}} # Cấu hình SSL
+        )
+    except Exception as e:
+        st.error(f"Lỗi kết nối DB: {e}")
+        return None
 
 def update_pet_features(pet_id, features_data):
     conn = get_db_connection()
@@ -137,85 +129,28 @@ def update_pet_features(pet_id, features_data):
 
 @st.cache_resource
 def init_db():
-    # ==============================================================
-    # KẾT NỐI TRỰC TIẾP VÀO DB CÓ SẴN (defaultdb) ĐỂ TẠO CÁC BẢNG (TABLES)
-    # LƯU Ý: Đã xóa Bước 1 vì Aiven không cho phép và không cần tạo DB mới
-    # ==============================================================
     try:
         conn = get_db_connection()
+        if conn is None: return 
         cursor = conn.cursor()
         
-        # Bảng 1: users (Đã có sẵn cột phone)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                username VARCHAR(50) PRIMARY KEY,
-                password TEXT NOT NULL,
-                full_name VARCHAR(100) NOT NULL,
-                phone VARCHAR(20) NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        """)
+        # Tạo bảng Users
+        cursor.execute("CREATE TABLE IF NOT EXISTS users (username VARCHAR(50) PRIMARY KEY, password TEXT NOT NULL, full_name VARCHAR(100) NOT NULL, phone VARCHAR(20) NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
+        # Tạo bảng Pets
+        cursor.execute("CREATE TABLE IF NOT EXISTS pets (id INT AUTO_INCREMENT PRIMARY KEY, owner_username VARCHAR(50) NOT NULL, name VARCHAR(100) NOT NULL, species VARCHAR(50) NOT NULL, age INT NOT NULL, weight FLOAT NOT NULL, image_features LONGTEXT NULL, FOREIGN KEY (owner_username) REFERENCES users(username) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
+        # Tạo bảng Appointments
+        cursor.execute("CREATE TABLE IF NOT EXISTS appointments (id INT AUTO_INCREMENT PRIMARY KEY, pet_id INT NOT NULL, date VARCHAR(20) NOT NULL, reason TEXT NOT NULL, status VARCHAR(50) DEFAULT 'Chờ xác nhận', doctor_notes TEXT NULL, fee FLOAT NULL, FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
         
-        # Bảng 2: pets
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS pets (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                owner_username VARCHAR(50) NOT NULL,
-                name VARCHAR(100) NOT NULL,
-                species VARCHAR(50) NOT NULL,
-                age INT NOT NULL,
-                weight FLOAT NOT NULL,
-                image_features LONGTEXT NULL,
-                FOREIGN KEY (owner_username) REFERENCES users(username) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        """)
-        
-        # ÉP BUỘC CẬP NHẬT CỘT LÊN LONGTEXT
-        cursor.execute("ALTER TABLE pets MODIFY image_features LONGTEXT NULL;")
-        
-        # Bảng 3: appointments 
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS appointments (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                pet_id INT NOT NULL,
-                date VARCHAR(20) NOT NULL,
-                reason TEXT NOT NULL,
-                status VARCHAR(50) DEFAULT 'Chờ xác nhận',
-                doctor_notes TEXT NULL,
-                fee FLOAT NULL,
-                FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        """)
-
-        # ==============================================================
-        # BƯỚC 3: MIGRATION AN TOÀN
-        # ==============================================================
-        try: cursor.execute("ALTER TABLE appointments ADD COLUMN doctor_notes TEXT NULL")
-        except pymysql.err.OperationalError: pass
-
-        try: cursor.execute("ALTER TABLE appointments ADD COLUMN fee FLOAT NULL")
-        except pymysql.err.OperationalError: pass
-        
-        try: cursor.execute("ALTER TABLE pets ADD COLUMN image_features TEXT NULL")
-        except pymysql.err.OperationalError: pass
-
-        try: cursor.execute("ALTER TABLE users ADD COLUMN phone VARCHAR(20) NULL")
-        except pymysql.err.OperationalError: pass
-
-        # ==============================================================
-        # BƯỚC 4: KHỞI TẠO TÀI KHOẢN ADMIN BẢO MẬT
-        # ==============================================================
+        # Khởi tạo Admin
         cursor.execute("SELECT * FROM users WHERE username = 'admin'")
         if not cursor.fetchone():
             hashed_admin_pw = bcrypt.hashpw("123456".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            cursor.execute(
-                "INSERT INTO users (username, password, full_name) VALUES (%s, %s, %s)",
-                ("admin", hashed_admin_pw, "Bác Sĩ Trưởng Khoa")
-            )
+            cursor.execute("INSERT INTO users (username, password, full_name) VALUES (%s, %s, %s)", ("admin", hashed_admin_pw, "Bác Sĩ Trưởng Khoa"))
             
         cursor.close()
         conn.close()
     except Exception as e:
-        st.error(f"🚨 LỖI KHỞI TẠO BẢNG: {e}")
+        st.error(f"🚨 LỖI KHỞI TẠO: {e}")
         st.stop()
 
 # Gọi hàm khởi tạo ngay khi ứng dụng chạy
@@ -346,6 +281,11 @@ if "current_user" not in st.session_state:
     st.session_state.current_user = None
 if "current_name" not in st.session_state:
     st.session_state.current_name = None
+
+# GỌI KHỞI TẠO MỘT LẦN DUY NHẤT
+if "db_initialized" not in st.session_state:
+    init_db()
+    st.session_state.db_initialized = True
 
 # ==========================================
 # MÀN HÌNH CHƯA ĐĂNG NHẬP: ĐĂNG KÝ / ĐĂNG NHẬP
