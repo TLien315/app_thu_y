@@ -99,6 +99,7 @@ st.markdown("""
 # 1. THIẾT LẬP CƠ SỞ DỮ LIỆU CHUẨN QUAN HỆ (MySQL)
 # ==========================================
 
+# Sửa lại hàm này trong code của bạn
 def get_db_connection():
     try:
         return pymysql.connect(
@@ -107,14 +108,14 @@ def get_db_connection():
             password=st.secrets["DB_PASS"],
             database=st.secrets["DB_NAME"],
             port=int(st.secrets["DB_PORT"]),
-            connect_timeout=10, # QUAN TRỌNG: Giới hạn thời gian đợi 10 giây
+            connect_timeout=30, # Tăng từ 10 lên 30 giây
             autocommit=True,
             charset='utf8mb4',
             cursorclass=pymysql.cursors.DictCursor,
-            ssl={'ssl': {'cert_reqs': ssl.CERT_NONE}} # Cấu hình SSL
+            ssl={'ssl': {'cert_reqs': ssl.CERT_NONE}}
         )
     except Exception as e:
-        st.error(f"Lỗi kết nối DB: {e}")
+        # Nếu lỗi ở đây, nó sẽ báo vào st.error và trả về None
         return None
 
 def update_pet_features(pet_id, features_data):
