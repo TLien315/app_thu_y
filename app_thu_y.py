@@ -1,5 +1,4 @@
 import pymysql
-import ssl
 import bcrypt
 import numpy as np
 import cv2
@@ -10,33 +9,21 @@ import plotly.express as px
 import io
 from datetime import datetime
 
-# CẤU HÌNH GIAO DIỆN NÂNG CAO
-hide_st_style = """
-<style>
-    /* Ẩn chữ Made with Streamlit ở dưới cùng */
-    footer {visibility: hidden !important;}
-    
-    /* Ẩn thanh menu Hamburger và nút Deploy ở góc phải */
-    div[data-testid="stToolbar"] {visibility: hidden !important;}
-    
-    /* Ẩn đường viền màu trên cùng */
-    div[data-testid="stDecoration"] {visibility: hidden !important;}
-    
-    /* ÉP BUỘC NÚT MỞ SIDEBAR PHẢI HIỆN RA */
-    [data-testid="collapsedControl"] {
-        visibility: visible !important;
-        display: flex !important;
-        z-index: 999999 !important;
-    }
-    
-    /* Đảm bảo phần đầu trang không bị ẩn toàn bộ */
-    header {
-        visibility: visible !important;
-        background: transparent !important;
-    }
-</style>
-"""
-st.markdown(hide_st_style, unsafe_allow_html=True)
+# Cập nhật CSS để ẩn tối đa các thành phần hệ thống
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            
+            /* Ẩn thanh công cụ điều hướng của Streamlit */
+            div[data-testid="stToolbar"] {visibility: hidden;}
+            
+            /* Ẩn menu hồ sơ/tài khoản ở góc nếu có */
+            div[data-testid="stDecoration"] {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # ==========================================
 # CẤU HÌNH GIAO DIỆN HIỆN ĐẠI (BRIGHTER MODERN UI)
@@ -99,7 +86,6 @@ st.markdown("""
 # 1. THIẾT LẬP CƠ SỞ DỮ LIỆU CHUẨN QUAN HỆ (MySQL)
 # ==========================================
 
-# Sửa lại hàm này trong code của bạn
 def get_db_connection():
     try:
         return pymysql.connect(
@@ -108,15 +94,14 @@ def get_db_connection():
             password=st.secrets["DB_PASS"],
             database=st.secrets["DB_NAME"],
             port=int(st.secrets["DB_PORT"]),
-            connect_timeout=30, # Tăng từ 10 lên 30 giây
             autocommit=True,
             charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor,
-            ssl={'ssl': {'cert_reqs': ssl.CERT_NONE}}
+            cursorclass=pymysql.cursors.DictCursor
         )
-    except Exception as e:
-        # Nếu lỗi ở đây, nó sẽ báo vào st.error và trả về None
-        return None
+    except pymysql.MySQLError as e:
+        # Sửa lại câu thông báo lỗi cho chuyên nghiệp
+        st.error(f"🚨 LỖI KẾT NỐI DATABASE! Chi tiết: {e}")
+        st.stop()
 
 def update_pet_features(pet_id, features_data):
     conn = get_db_connection()
@@ -128,34 +113,109 @@ def update_pet_features(pet_id, features_data):
     cursor.close()
     conn.close()
 
-@st.cache_resource
+
 def init_db():
+    # ==============================================================
+    # BƯỚC 1: KẾT NỐI SERVER (KHÔNG CẦN TÊN DB) ĐỂ TỰ ĐỘNG TẠO DATABASE
+    # ==============================================================
     try:
-        conn = get_db_connection()
-        if conn is None: return 
-        cursor = conn.cursor()
+        conn_server = pymysql.connect(
+            host=st.secrets["DB_HOST"],
+            user=st.secrets["DB_USER"],
+            password=st.secrets["DB_PASS"],
+            port=int(st.secrets["DB_PORT"]),
+            autocommit=True,
+            charset='utf8mb4'
+        )
+        cursor_server = conn_server.cursor()
+        db_name = st.secrets["DB_NAME"]
         
-        # Tạo bảng Users
-        cursor.execute("CREATE TABLE IF NOT EXISTS users (username VARCHAR(50) PRIMARY KEY, password TEXT NOT NULL, full_name VARCHAR(100) NOT NULL, phone VARCHAR(20) NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
-        # Tạo bảng Pets
-        cursor.execute("CREATE TABLE IF NOT EXISTS pets (id INT AUTO_INCREMENT PRIMARY KEY, owner_username VARCHAR(50) NOT NULL, name VARCHAR(100) NOT NULL, species VARCHAR(50) NOT NULL, age INT NOT NULL, weight FLOAT NOT NULL, image_features LONGTEXT NULL, FOREIGN KEY (owner_username) REFERENCES users(username) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
-        # Tạo bảng Appointments
-        cursor.execute("CREATE TABLE IF NOT EXISTS appointments (id INT AUTO_INCREMENT PRIMARY KEY, pet_id INT NOT NULL, date VARCHAR(20) NOT NULL, reason TEXT NOT NULL, status VARCHAR(50) DEFAULT 'Chờ xác nhận', doctor_notes TEXT NULL, fee FLOAT NULL, FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
-        
-        # Khởi tạo Admin
-        cursor.execute("SELECT * FROM users WHERE username = 'admin'")
-        if not cursor.fetchone():
-            hashed_admin_pw = bcrypt.hashpw("123456".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            cursor.execute("INSERT INTO users (username, password, full_name) VALUES (%s, %s, %s)", ("admin", hashed_admin_pw, "Bác Sĩ Trưởng Khoa"))
-            
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        st.error(f"🚨 LỖI KHỞI TẠO: {e}")
+        # Lệnh SQL ép MySQL tự động đẻ ra Database nếu nó chưa tồn tại
+        cursor_server.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;")
+        cursor_server.close()
+        conn_server.close()
+    except pymysql.MySQLError as e:
+        st.error(f"🚨 LỖI KẾT NỐI SERVER MYSQL! Hãy chắc chắn bạn đã bật MySQL trong XAMPP. Chi tiết: {e}")
         st.stop()
 
-# Gọi hàm khởi tạo ngay khi ứng dụng chạy
+    # ==============================================================
+    # BƯỚC 2: KẾT NỐI VÀO DB VỪA TẠO ĐỂ TỰ ĐỘNG ĐẺ RA CÁC BẢNG (TABLES)
+    # ==============================================================
+    conn = get_db_connection() # Gọi lại hàm kết nối chuẩn có kèm tên database
+    cursor = conn.cursor()
+    
+    # Bảng 1: users (Đã có sẵn cột phone)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            username VARCHAR(50) PRIMARY KEY,
+            password TEXT NOT NULL,
+            full_name VARCHAR(100) NOT NULL,
+            phone VARCHAR(20) NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    """)
+    
+    # Bảng 2: pets
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pets (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            owner_username VARCHAR(50) NOT NULL,
+            name VARCHAR(100) NOT NULL,
+            species VARCHAR(50) NOT NULL,
+            age INT NOT NULL,
+            weight FLOAT NOT NULL,
+            image_features LONGTEXT NULL,
+            FOREIGN KEY (owner_username) REFERENCES users(username) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    """)
+    
+    # ÉP BUỘC CẬP NHẬT CỘT LÊN LONGTEXT (Quan trọng: lệnh này sẽ sửa lỗi của bạn)
+    cursor.execute("ALTER TABLE pets MODIFY image_features LONGTEXT NULL;")
+    
+    # Bảng 3: appointments 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS appointments (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            pet_id INT NOT NULL,
+            date VARCHAR(20) NOT NULL,
+            reason TEXT NOT NULL,
+            status VARCHAR(50) DEFAULT 'Chờ xác nhận',
+            doctor_notes TEXT NULL,
+            fee FLOAT NULL,
+            FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    """)
+
+    # ==============================================================
+    # BƯỚC 3: MIGRATION AN TOÀN (Dự phòng nếu DB cũ chưa bị xóa đi)
+    # ==============================================================
+    try: cursor.execute("ALTER TABLE appointments ADD COLUMN doctor_notes TEXT NULL")
+    except pymysql.err.OperationalError: pass
+
+    try: cursor.execute("ALTER TABLE appointments ADD COLUMN fee FLOAT NULL")
+    except pymysql.err.OperationalError: pass
+    
+    try: cursor.execute("ALTER TABLE pets ADD COLUMN image_features TEXT NULL")
+    except pymysql.err.OperationalError: pass
+
+    try: cursor.execute("ALTER TABLE users ADD COLUMN phone VARCHAR(20) NULL")
+    except pymysql.err.OperationalError: pass
+
+    # ==============================================================
+    # BƯỚC 4: KHỞI TẠO TÀI KHOẢN ADMIN BẢO MẬT
+    # ==============================================================
+    cursor.execute("SELECT * FROM users WHERE username = 'admin'")
+    if not cursor.fetchone():
+        hashed_admin_pw = bcrypt.hashpw("123456".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        cursor.execute(
+            "INSERT INTO users (username, password, full_name) VALUES (%s, %s, %s)",
+            ("admin", hashed_admin_pw, "Bác Sĩ Trưởng Khoa")
+        )
+        
+    cursor.close()
+    conn.close()
+
 init_db()
+
 
 # --- HÀM XỬ LÝ NGHIỆP VỤ DATABASE ---
 
@@ -245,44 +305,22 @@ def delete_appointment(app_id):
 def get_all_data(table_name):
     if table_name not in ["users", "pets", "appointments"]:
         return []
-    
-    conn = get_db_connection()
-    
-    # LỚP BẢO VỆ: Nếu kết nối thất bại (None), trả về danh sách trống và thông báo lỗi
-    if conn is None:
-        st.error("Không thể kết nối Database. Vui lòng kiểm tra lại cấu hình kết nối.")
-        return []
-
-    try:
-        cursor = conn.cursor()
-        cursor.execute(f"SELECT * FROM {table_name}")
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
-
-        result = []
-        for r in rows:
-            if table_name == "users":
-                result.append((r['username'], r['password'], r['full_name'], r.get('phone') or ""))
-            elif table_name == "pets":
-                result.append((r['id'], r['owner_username'], r['name'], r['species'], r['age'], r['weight'], r.get('image_features') or ""))
-            elif table_name == "appointments":
-                result.append((r['id'], r['pet_id'], r['date'], r['reason'], r['status'], r.get('doctor_notes') or "", r.get('fee') or 0))
-        return result
-        
-    except Exception as e:
-        st.error(f"Lỗi truy vấn dữ liệu: {e}")
-        return []
-
-
-def get_user_by_username(username):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT username, full_name, phone FROM users WHERE username = %s", (username,))
-    row = cursor.fetchone()
+    cursor.execute(f"SELECT * FROM {table_name}")
+    rows = cursor.fetchall()
     cursor.close()
     conn.close()
-    return row
+    
+    result = []
+    for r in rows:
+        if table_name == "users":
+            result.append((r['username'], r['password'], r['full_name'], r.get('phone') or ""))
+        elif table_name == "pets":
+            result.append((r['id'], r['owner_username'], r['name'], r['species'], r['age'], r['weight'], r.get('image_features') or ""))
+        elif table_name == "appointments":
+            result.append((r['id'], r['pet_id'], r['date'], r['reason'], r['status'], r.get('doctor_notes') or "", r.get('fee') or 0))
+    return result
 
 
 # Khởi động Session State
@@ -294,11 +332,6 @@ if "current_user" not in st.session_state:
     st.session_state.current_user = None
 if "current_name" not in st.session_state:
     st.session_state.current_name = None
-
-# GỌI KHỞI TẠO MỘT LẦN DUY NHẤT
-if "db_initialized" not in st.session_state:
-    init_db()
-    st.session_state.db_initialized = True
 
 # ==========================================
 # MÀN HÌNH CHƯA ĐĂNG NHẬP: ĐĂNG KÝ / ĐĂNG NHẬP
@@ -945,92 +978,63 @@ else:
                     with st.spinner("🔍 AI đang phân tích sinh trắc học..."):
                         try:
                             import requests, base64, json
-
+                            
                             face_id_img.seek(0)
-                            new_image_base64 = base64.b64encode(face_id_img.read()).decode('utf-8')
+                            image_base64 = base64.b64encode(face_id_img.read()).decode('utf-8')
                             api_key_vision = st.secrets["GEMINI_API_KEY"]
                             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key_vision}"
-
+                            
                             current_pets = get_all_data("pets")
-                            # CHỈ lấy những bé ĐÃ có ảnh hồ sơ lưu trong DB để so sánh
-                            pets_with_photo = [p for p in current_pets if p[6]]
-
+                            registered_pets = [{"id": p[0], "name": p[2], "species": p[3]} for p in current_pets]
+                            
                             prompt_face = (
-                                "Bạn là chuyên gia AI nhận diện khuôn mặt thú cưng bằng cách so sánh HÌNH ẢNH THỰC TẾ, "
-                                "KHÔNG dựa vào tên hay loài. "
-                                "Ảnh ĐẦU TIÊN là ảnh vừa quét cần nhận diện. Các ảnh tiếp theo là ảnh hồ sơ đã lưu, "
-                                "mỗi ảnh có nhãn PET_ID đứng ngay trước nó. "
-                                "So sánh đặc điểm ngoại hình (màu lông, hoa văn/đốm, hình dạng tai, mũi, mắt...) giữa ảnh vừa quét "
-                                "và từng ảnh hồ sơ. "
-                                "Nếu khớp với một hồ sơ, CHỈ trả về DUY NHẤT con số PET_ID đó, không thêm chữ nào khác (ví dụ: 3). "
-                                "Nếu không khớp với bất kỳ hồ sơ nào, trả về đúng định dạng: "
-                                "NEW|Giống loài|Đặc điểm nhận diện lông và ngoại hình|Nhận xét chi tiết khuôn mặt."
+                                f"Bạn là chuyên gia AI quét sinh trắc học thú cưng. Danh sách đã đăng ký: {json.dumps(registered_pets, ensure_ascii=False)}. "
+                                "Nhiệm vụ: 1. Nếu ảnh khớp với thú cưng trong danh sách, trả về DUY NHẤT ID (ví dụ: 1). "
+                                "2. Nếu là thú cưng mới, trả về định dạng: NEW|Giống loài|Đặc điểm nhận diện lông và ngoại hình (màu lông, đốm, tai, mũi)|Nhận xét chi tiết khuôn mặt."
                             )
-
-                            parts = [
-                                {"text": prompt_face},
-                                {"text": "ẢNH CẦN NHẬN DIỆN:"},
-                                {"inlineData": {"mimeType": "image/jpeg", "data": new_image_base64}}
-                            ]
-
-                            for p in pets_with_photo:
-                                parts.append({"text": f"PET_ID {p[0]} - Ảnh hồ sơ đã lưu:"})
-                                parts.append({"inlineData": {"mimeType": "image/jpeg", "data": p[6]}})
-
-                            payload = {"contents": [{"parts": parts}]}
+                            
+                            payload = {"contents": [{"parts": [{"text": prompt_face}, {"inlineData": {"mimeType": "image/jpeg", "data": image_base64}}]}]}
                             response = requests.post(url, headers={'Content-Type': 'application/json'}, data=json.dumps(payload))
-
+                            
                             if response.status_code == 200:
                                 result_text = response.json()['candidates'][0]['content']['parts'][0]['text'].strip()
-
+                                
                                 # --- TRƯỜNG HỢP NHẬN DIỆN ĐƯỢC THÚ CƯNG CŨ ---
                                 if result_text.isdigit():
                                     matched_id = int(result_text)
                                     matched_pet = next((p for p in current_pets if p[0] == matched_id), None)
                                     if matched_pet:
-                                        owner_info = get_user_by_username(matched_pet[1])
                                         st.success(f"✅ ĐÃ NHẬN DIỆN: {matched_pet[2]} (Mã: PET-{matched_id:03d})")
-                                        if owner_info:
-                                            st.markdown(f"""
-                                            <div style="background-color:#e8f4fd;padding:15px;border-radius:8px;border:1px solid #b8daff;color:#004085;">
-                                                <b>👤 Thông tin chủ nuôi:</b><br>
-                                                • Họ tên: {owner_info['full_name']}<br>
-                                                • Username: {owner_info['username']}<br>
-                                                • SĐT: {owner_info['phone'] or 'Chưa cập nhật'}<br>
-                                                • Loài: {matched_pet[3]} — Tuổi: {matched_pet[4]} — Cân nặng: {matched_pet[5]}kg
-                                            </div>
-                                            """, unsafe_allow_html=True)
-                                        else:
-                                            st.error(f"⚠️ Không tìm thấy chủ nuôi trong hệ thống (owner_username: '{matched_pet[1]}').")
-                                    else:
-                                        st.error("Không tìm thấy hồ sơ thú cưng tương ứng với ID nhận diện được.")
-
-                                # --- TRƯỜNG HỢP LÀ THÚ CƯNG MỚI ---
+                                
+                                # --- TRƯỜNG HỢP LÀ THÚ CƯNG MỚI (CHƯA CÓ ID) ---
                                 elif "NEW" in result_text:
-                                    parts_r = result_text.split("|")
-                                    st.warning("⚠️ Thú cưng này chưa có trong danh sách hồ sơ (hoặc chưa từng được gán ảnh)!")
+                                    parts = result_text.split("|")
+                                    st.warning("⚠️ Thú cưng này chưa có trong danh sách hồ sơ!")
+                                    
+                                    # Hiển thị phân tích đặc điểm từ AI
                                     st.markdown(f"""
                                     <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; margin-bottom: 15px;">
                                         <b>🤖 AI phân tích chi tiết:</b><br>
-                                        • 🧬 <b>Giống loài:</b> {parts_r[1] if len(parts_r) > 1 else 'Khác'}<br>
-                                        • 🐾 <b>Đặc điểm:</b> {parts_r[2] if len(parts_r) > 2 else 'Không rõ'}<br>
-                                        • 📝 <b>Nhận xét:</b> {parts_r[3] if len(parts_r) > 3 else 'Không rõ'}
+                                        • 🧬 <b>Giống loài:</b> {parts[1] if len(parts) > 1 else 'Khác'}<br>
+                                        • 🐾 <b>Đặc điểm:</b> {parts[2] if len(parts) > 2 else 'Không rõ'}<br>
+                                        • 📝 <b>Nhận xét:</b> {parts[3] if len(parts) > 3 else 'Không rõ'}
                                     </div>
                                     """, unsafe_allow_html=True)
-
-                                    all_pets_db = get_all_data("pets")
+                
+                                    # Hiển thị danh sách thú cưng để bác sĩ gán thủ công vào hồ sơ cũ
+                                    all_pets_db = get_all_data("pets") 
                                     if all_pets_db:
                                         pet_options = {f"{p[2]} (Mã: PET-{p[0]:03d})": p[0] for p in all_pets_db}
-                                        selected_pet_label = st.selectbox("Chọn hồ sơ thú cưng để gán Face ID:", list(pet_options.keys()))
+                                        selected_pet_label = st.selectbox("Chọn hồ sơ thú cưng đã đặt lịch để gán Face ID:", list(pet_options.keys()))
+                                        
                                         if st.button("🔗 Gán Face ID vào hồ sơ này"):
                                             selected_id = pet_options[selected_pet_label]
-                                            update_pet_features(selected_id, new_image_base64)
+                                            # GỌI HÀM CẬP NHẬT DATABASE
+                                            update_pet_features(selected_id, image_base64)
                                             st.success(f"✅ Đã gán thành công khuôn mặt cho bé {selected_pet_label}!")
                                             st.rerun()
                                     else:
                                         st.error("Hệ thống chưa có hồ sơ nào để gán.")
-                                else:
-                                    st.warning("AI không xác định được kết quả rõ ràng, vui lòng thử quét lại với ánh sáng tốt hơn.")
                             else:
                                 st.error(f"Lỗi API: {response.status_code}")
                         except Exception as e:
