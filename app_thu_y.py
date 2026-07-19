@@ -99,22 +99,31 @@ st.markdown("""
 # 1. THIẾT LẬP CƠ SỞ DỮ LIỆU CHUẨN QUAN HỆ (MySQL)
 # ==========================================
 
+@st.cache_resource
+def get_db_engine():
+    # Sử dụng @st.cache_resource để giữ kết nối sống mãi trong phiên làm việc
+    return pymysql.connect(
+        host=st.secrets["DB_HOST"],
+        user=st.secrets["DB_USER"],
+        password=st.secrets["DB_PASS"],
+        database=st.secrets["DB_NAME"],
+        port=int(st.secrets["DB_PORT"]),
+        autocommit=True,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor,
+        ssl={'cert_reqs': ssl.CERT_NONE}
+    )
+
 def get_db_connection():
+    conn = get_db_engine()
     try:
-        return pymysql.connect(
-            host=st.secrets["DB_HOST"],
-            user=st.secrets["DB_USER"],
-            password=st.secrets["DB_PASS"],
-            database=st.secrets["DB_NAME"],
-            port=int(st.secrets["DB_PORT"]),
-            autocommit=True,
-            charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor,
-            ssl={'cert_reqs': ssl.CERT_NONE}  # <--- BỔ SUNG DÒNG NÀY
-        )
-    except pymysql.MySQLError as e:
-        st.error(f"🚨 LỖI KẾT NỐI DATABASE! Chi tiết: {e}")
-        st.stop()
+        # Kiểm tra xem kết nối còn sống không (ping)
+        conn.ping(reconnect=True)
+    except:
+        # Nếu chết, lấy kết nối mới
+        st.cache_resource.clear()
+        conn = get_db_engine()
+    return conn
 
 def update_pet_features(pet_id, features_data):
     conn = get_db_connection()
