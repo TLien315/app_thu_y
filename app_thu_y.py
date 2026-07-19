@@ -129,107 +129,88 @@ def update_pet_features(pet_id, features_data):
 @st.cache_resource
 def init_db():
     # ==============================================================
-    # BƯỚC 1: KẾT NỐI SERVER (KHÔNG CẦN TÊN DB) ĐỂ TỰ ĐỘNG TẠO DATABASE
+    # KẾT NỐI TRỰC TIẾP VÀO DB CÓ SẴN (defaultdb) ĐỂ TẠO CÁC BẢNG (TABLES)
+    # LƯU Ý: Đã xóa Bước 1 vì Aiven không cho phép và không cần tạo DB mới
     # ==============================================================
     try:
-        conn_server = pymysql.connect(
-            host=st.secrets["DB_HOST"],
-            user=st.secrets["DB_USER"],
-            password=st.secrets["DB_PASS"],
-            port=int(st.secrets["DB_PORT"]),
-            autocommit=True,
-            charset='utf8mb4',
-            ssl={'cert_reqs': ssl.CERT_NONE}  # <--- BẮT BUỘC PHẢI CÓ Ở ĐÂY
-        )
-        cursor_server = conn_server.cursor()
-        db_name = st.secrets["DB_NAME"]
+        conn = get_db_connection()
+        cursor = conn.cursor()
         
-        # Lệnh SQL ép MySQL tự động đẻ ra Database nếu nó chưa tồn tại
-        cursor_server.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;")
-        cursor_server.close()
-        conn_server.close()
-    except pymysql.MySQLError as e:
-        st.error(f"🚨 LỖI KẾT NỐI SERVER MYSQL! Hãy chắc chắn bạn đã bật MySQL trong XAMPP. Chi tiết: {e}")
+        # Bảng 1: users (Đã có sẵn cột phone)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                username VARCHAR(50) PRIMARY KEY,
+                password TEXT NOT NULL,
+                full_name VARCHAR(100) NOT NULL,
+                phone VARCHAR(20) NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """)
+        
+        # Bảng 2: pets
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pets (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                owner_username VARCHAR(50) NOT NULL,
+                name VARCHAR(100) NOT NULL,
+                species VARCHAR(50) NOT NULL,
+                age INT NOT NULL,
+                weight FLOAT NOT NULL,
+                image_features LONGTEXT NULL,
+                FOREIGN KEY (owner_username) REFERENCES users(username) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """)
+        
+        # ÉP BUỘC CẬP NHẬT CỘT LÊN LONGTEXT
+        cursor.execute("ALTER TABLE pets MODIFY image_features LONGTEXT NULL;")
+        
+        # Bảng 3: appointments 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS appointments (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                pet_id INT NOT NULL,
+                date VARCHAR(20) NOT NULL,
+                reason TEXT NOT NULL,
+                status VARCHAR(50) DEFAULT 'Chờ xác nhận',
+                doctor_notes TEXT NULL,
+                fee FLOAT NULL,
+                FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        """)
+
+        # ==============================================================
+        # BƯỚC 3: MIGRATION AN TOÀN
+        # ==============================================================
+        try: cursor.execute("ALTER TABLE appointments ADD COLUMN doctor_notes TEXT NULL")
+        except pymysql.err.OperationalError: pass
+
+        try: cursor.execute("ALTER TABLE appointments ADD COLUMN fee FLOAT NULL")
+        except pymysql.err.OperationalError: pass
+        
+        try: cursor.execute("ALTER TABLE pets ADD COLUMN image_features TEXT NULL")
+        except pymysql.err.OperationalError: pass
+
+        try: cursor.execute("ALTER TABLE users ADD COLUMN phone VARCHAR(20) NULL")
+        except pymysql.err.OperationalError: pass
+
+        # ==============================================================
+        # BƯỚC 4: KHỞI TẠO TÀI KHOẢN ADMIN BẢO MẬT
+        # ==============================================================
+        cursor.execute("SELECT * FROM users WHERE username = 'admin'")
+        if not cursor.fetchone():
+            hashed_admin_pw = bcrypt.hashpw("123456".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+            cursor.execute(
+                "INSERT INTO users (username, password, full_name) VALUES (%s, %s, %s)",
+                ("admin", hashed_admin_pw, "Bác Sĩ Trưởng Khoa")
+            )
+            
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        st.error(f"🚨 LỖI KHỞI TẠO BẢNG: {e}")
         st.stop()
 
-    # ==============================================================
-    # BƯỚC 2: KẾT NỐI VÀO DB VỪA TẠO ĐỂ TỰ ĐỘNG ĐẺ RA CÁC BẢNG (TABLES)
-    # ==============================================================
-    conn = get_db_connection() # Gọi lại hàm kết nối chuẩn có kèm tên database
-    cursor = conn.cursor()
-    
-    # Bảng 1: users (Đã có sẵn cột phone)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            username VARCHAR(50) PRIMARY KEY,
-            password TEXT NOT NULL,
-            full_name VARCHAR(100) NOT NULL,
-            phone VARCHAR(20) NULL
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    """)
-    
-    # Bảng 2: pets
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS pets (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            owner_username VARCHAR(50) NOT NULL,
-            name VARCHAR(100) NOT NULL,
-            species VARCHAR(50) NOT NULL,
-            age INT NOT NULL,
-            weight FLOAT NOT NULL,
-            image_features LONGTEXT NULL,
-            FOREIGN KEY (owner_username) REFERENCES users(username) ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    """)
-    
-    # ÉP BUỘC CẬP NHẬT CỘT LÊN LONGTEXT (Quan trọng: lệnh này sẽ sửa lỗi của bạn)
-    cursor.execute("ALTER TABLE pets MODIFY image_features LONGTEXT NULL;")
-    
-    # Bảng 3: appointments 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS appointments (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            pet_id INT NOT NULL,
-            date VARCHAR(20) NOT NULL,
-            reason TEXT NOT NULL,
-            status VARCHAR(50) DEFAULT 'Chờ xác nhận',
-            doctor_notes TEXT NULL,
-            fee FLOAT NULL,
-            FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    """)
-
-    # ==============================================================
-    # BƯỚC 3: MIGRATION AN TOÀN (Dự phòng nếu DB cũ chưa bị xóa đi)
-    # ==============================================================
-    try: cursor.execute("ALTER TABLE appointments ADD COLUMN doctor_notes TEXT NULL")
-    except pymysql.err.OperationalError: pass
-
-    try: cursor.execute("ALTER TABLE appointments ADD COLUMN fee FLOAT NULL")
-    except pymysql.err.OperationalError: pass
-    
-    try: cursor.execute("ALTER TABLE pets ADD COLUMN image_features TEXT NULL")
-    except pymysql.err.OperationalError: pass
-
-    try: cursor.execute("ALTER TABLE users ADD COLUMN phone VARCHAR(20) NULL")
-    except pymysql.err.OperationalError: pass
-
-    # ==============================================================
-    # BƯỚC 4: KHỞI TẠO TÀI KHOẢN ADMIN BẢO MẬT
-    # ==============================================================
-    cursor.execute("SELECT * FROM users WHERE username = 'admin'")
-    if not cursor.fetchone():
-        hashed_admin_pw = bcrypt.hashpw("123456".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        cursor.execute(
-            "INSERT INTO users (username, password, full_name) VALUES (%s, %s, %s)",
-            ("admin", hashed_admin_pw, "Bác Sĩ Trưởng Khoa")
-        )
-        
-    cursor.close()
-    conn.close()
-
+# Gọi hàm khởi tạo ngay khi ứng dụng chạy
 init_db()
-
 
 # --- HÀM XỬ LÝ NGHIỆP VỤ DATABASE ---
 
