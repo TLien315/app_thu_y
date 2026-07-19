@@ -139,7 +139,7 @@ def init_db():
             port=int(st.secrets["DB_PORT"]),
             autocommit=True,
             charset='utf8mb4',
-            ssl={'cert_reqs': ssl.CERT_NONE}  
+            ssl={'cert_reqs': ssl.CERT_NONE}  # <--- BẮT BUỘC PHẢI CÓ Ở ĐÂY
         )
         cursor_server = conn_server.cursor()
         db_name = st.secrets["DB_NAME"]
