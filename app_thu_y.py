@@ -244,22 +244,34 @@ def delete_appointment(app_id):
 def get_all_data(table_name):
     if table_name not in ["users", "pets", "appointments"]:
         return []
+    
     conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(f"SELECT * FROM {table_name}")
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    
+    # LỚP BẢO VỆ: Nếu kết nối thất bại (None), trả về danh sách trống và thông báo lỗi
+    if conn is None:
+        st.error("Không thể kết nối Database. Vui lòng kiểm tra lại cấu hình kết nối.")
+        return []
 
-    result = []
-    for r in rows:
-        if table_name == "users":
-            result.append((r['username'], r['password'], r['full_name'], r.get('phone') or ""))
-        elif table_name == "pets":
-            result.append((r['id'], r['owner_username'], r['name'], r['species'], r['age'], r['weight'], r.get('image_features') or ""))
-        elif table_name == "appointments":
-            result.append((r['id'], r['pet_id'], r['date'], r['reason'], r['status'], r.get('doctor_notes') or "", r.get('fee') or 0))
-    return result
+    try:
+        cursor = conn.cursor()
+        cursor.execute(f"SELECT * FROM {table_name}")
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+
+        result = []
+        for r in rows:
+            if table_name == "users":
+                result.append((r['username'], r['password'], r['full_name'], r.get('phone') or ""))
+            elif table_name == "pets":
+                result.append((r['id'], r['owner_username'], r['name'], r['species'], r['age'], r['weight'], r.get('image_features') or ""))
+            elif table_name == "appointments":
+                result.append((r['id'], r['pet_id'], r['date'], r['reason'], r['status'], r.get('doctor_notes') or "", r.get('fee') or 0))
+        return result
+        
+    except Exception as e:
+        st.error(f"Lỗi truy vấn dữ liệu: {e}")
+        return []
 
 
 def get_user_by_username(username):
