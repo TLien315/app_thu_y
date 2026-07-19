@@ -126,7 +126,7 @@ def update_pet_features(pet_id, features_data):
     cursor.close()
     conn.close()
 
-
+@st.cache_resource
 def init_db():
     # ==============================================================
     # BƯỚC 1: KẾT NỐI SERVER (KHÔNG CẦN TÊN DB) ĐỂ TỰ ĐỘNG TẠO DATABASE
