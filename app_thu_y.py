@@ -1,4 +1,5 @@
 import pymysql
+import ssl
 import bcrypt
 import numpy as np
 import cv2
@@ -108,10 +109,10 @@ def get_db_connection():
             port=int(st.secrets["DB_PORT"]),
             autocommit=True,
             charset='utf8mb4',
-            cursorclass=pymysql.cursors.DictCursor
+            cursorclass=pymysql.cursors.DictCursor,
+            ssl={'cert_reqs': ssl.CERT_NONE}  # <--- BỔ SUNG DÒNG NÀY
         )
     except pymysql.MySQLError as e:
-        # Sửa lại câu thông báo lỗi cho chuyên nghiệp
         st.error(f"🚨 LỖI KẾT NỐI DATABASE! Chi tiết: {e}")
         st.stop()
 
@@ -137,7 +138,8 @@ def init_db():
             password=st.secrets["DB_PASS"],
             port=int(st.secrets["DB_PORT"]),
             autocommit=True,
-            charset='utf8mb4'
+            charset='utf8mb4',
+            ssl={'cert_reqs': ssl.CERT_NONE}  
         )
         cursor_server = conn_server.cursor()
         db_name = st.secrets["DB_NAME"]
